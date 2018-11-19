@@ -5,7 +5,7 @@ import random
 
 
 class Body(): #Rigid Body 
-    def __init__(self, mass, IBody, IBodyInv, X, q, P, L): 
+    def __init__(self, mass, IBody, IBodyInv, X, q, P, L, thrusts): 
         #constants
         self.mass = mass
         self.IBody = IBody
@@ -26,6 +26,8 @@ class Body(): #Rigid Body
         #computed quantities
         self.force = np.array([0.,0.,0.])
         self.torque = np.array([0.,0.,0.])
+        
+        self.thrusts = thrusts
     
     def Compute_Force_and_Torque(self, y, t):
         #planet_position = [0.,0.,0.]
@@ -49,54 +51,153 @@ class Body(): #Rigid Body
 
         goforward = y[13]
         if(goforward):
-            forward = self.q.rotate(np.array([0.,0.,-1.]))
-            #forward = np.matmul(self.R, np.array([0.,0.,-1.]))
-            thrust = 0.5            
+            thrust = self.thrusts[0]     
+            forward = np.matmul(self.R, np.array([0.,0.,1.]))     
+            #forward = self.q.rotate(np.array([0.,0.,1.]))
             F = F + (forward * thrust)
             
         gobackward = y[14]
         if(gobackward):
-            forward = self.q.rotate(np.array([0.,0.,1.]))
-            #forward = np.matmul(self.R, np.array([0.,0.,1.]))
-            thrust = 0.5
+            thrust = self.thrusts[1] 
+            forward = np.matmul(self.R, np.array([0.,0.,-1.]))
+            #forward = self.q.rotate(np.array([0.,0.,-1.]))
             F = F + (forward * thrust)
             
         turnUp = y[15]
         if(turnUp):
-            thrust = 0.5
-            side = self.q.rotate(np.array([-1.,0.,0.]))
-            #side = np.matmul(self.R, np.array([1.,0.,0.])) #rolls left
-            T = T + (side * thrust)
+            self.thrusts[2] 
+            l1 = np.array([0.,-0.5,0.5])   #location of point one
+            l2 = np.array([0.,0.5,-0.5]) 
+            f1 = np.array([0.,0.,-thrust]) #force one on point one
+            f2 = np.array([0.,0.,thrust])
+            
+            f1 = np.matmul(self.R, f1)
+            f2 = np.matmul(self.R, f2)
+            
+            rl1 = np.matmul(self.R, l1)
+            rl2 = np.matmul(self.R, l2)
+            
+            #f1 = self.q.rotate(f1)
+            #f2 = self.q.rotate(f2)
+            
+            #rl1 = self.q.rotate(l1)
+            #rl2 = self.q.rotate(l2)
+             
+            rlf1 = np.cross(rl1, f1)
+            rlf2 = np.cross(rl2, f2)
+            
+            tau = rlf1 + rlf2
+            T = T + tau
             
         turnDown = y[16]
         if(turnDown):
-            thrust = 0.5
-            side = self.q.rotate(np.array([1.,0.,0.])) 
-            T = T + (side * thrust)
+            self.thrusts[3] 
+            l1 = np.array([0.,0.5,0.5])   #location of point one
+            l2 = np.array([0.,-0.5,-0.5]) 
+            f1 = np.array([0.,0.,-thrust]) #force one on point one
+            f2 = np.array([0.,0.,thrust])
+            
+            f1 = np.matmul(self.R, f1)
+            f2 = np.matmul(self.R, f2)
+            
+            rl1 = np.matmul(self.R, l1)
+            rl2 = np.matmul(self.R, l2)
+             
+            rlf1 = np.cross(rl1, f1)
+            rlf2 = np.cross(rl2, f2)
+            
+            tau = rlf1 + rlf2
+            T = T + tau
             
         turnLeft = y[17]
         if(turnLeft):
-            thrust = 0.5
-            side = self.q.rotate(np.array([0.,-1.,0.])) 
-            T = T + (side * thrust)
+            self.thrusts[4] 
+            l1 = np.array([0.5,0.,0.5])   #location of point one
+            l2 = np.array([-0.5,0.,-0.5]) 
+            f1 = np.array([0.,0.,-thrust]) #force one on point one
+            f2 = np.array([0.,0.,thrust])
             
-        turnRight = y[18]
-        if(turnLeft):
-            thrust = 0.5
-            side = self.q.rotate(np.array([0.,1.,0.])) 
-            T = T + (side * thrust)
+            f1 = np.matmul(self.R, f1)
+            f2 = np.matmul(self.R, f2)
+            
+            rl1 = np.matmul(self.R, l1)
+            rl2 = np.matmul(self.R, l2)
+             
+            rlf1 = np.cross(rl1, f1)
+            rlf2 = np.cross(rl2, f2)
+            
+            tau = rlf1 + rlf2
+            T = T + tau
+            
+        turnRight = y[18]   
+        if(turnRight):
+            self.thrusts[5] 
+            l1 = np.array([-0.5,0.,0.5])   #location of point one
+            l2 = np.array([0.5,0.,-0.5]) 
+            f1 = np.array([0.,0.,-thrust]) #force one on point one
+            f2 = np.array([0.,0.,thrust])
+                    
+            f1 = np.matmul(self.R, f1)
+            f2 = np.matmul(self.R, f2)
+            
+            rl1 = np.matmul(self.R, l1)
+            rl2 = np.matmul(self.R, l2)
+             
+            rlf1 = np.cross(rl1, rf1)
+            rlf2 = np.cross(rl2, rf2)
+            
+            tau = rlf1 + rlf2
+            T = T + tau
             
         rollLeft = y[19]
         if(rollLeft):
-            thrust = 0.5
-            side = self.q.rotate(np.array([0.,0.,1.])) 
-            T = T + (side * thrust)
+            self.thrusts[6] 
+            l1 = np.array([0.5,0.5,0.])   #location of point one
+            l2 = np.array([-0.5,-0.5,0.]) 
+            f1 = np.array([0.,-thrust,0.]) #force one on point one
+            f2 = np.array([0.,thrust,0.])
+            
+            f1 = np.matmul(self.R, f1)
+            f2 = np.matmul(self.R, f2)
+            
+            rl1 = np.matmul(self.R, l1)
+            rl2 = np.matmul(self.R, l2)
+             
+            rlf1 = np.cross(rl1, f1)
+            rlf2 = np.cross(rl2, f2)
+            
+            tau = rlf1 + rlf2
+            T = T + tau
             
         rollRight = y[20]
         if(rollRight):
-            thrust = 0.5
-            side = self.q.rotate(np.array([0.,0.,-1.])) 
-            T = T + (side * thrust)
+            self.thrusts[7] 
+            l1 = np.array([-0.5,0.5,0.])   #location of point one
+            l2 = np.array([0.5,-0.5,0.]) 
+            f1 = np.array([0.,-thrust,0.]) #force one on point one
+            f2 = np.array([0.,thrust,0.])
+            
+            f1 = np.matmul(self.R, f1)
+            f2 = np.matmul(self.R, f2)
+            
+            rl1 = np.matmul(self.R, l1)
+            rl2 = np.matmul(self.R, l2)
+            
+            #f1 = self.q.rotate(f1)
+            #f2 = self.q.rotate(f2)
+            
+            #rl1 = self.q.rotate(l1)
+            #rl2 = self.q.rotate(l2)
+            
+            rlf1 = np.cross(rl1, f1)
+            rlf2 = np.cross(rl2, f2)
+            
+            tau = rlf1 + rlf2
+            T = T + tau
+        if(False):
+            T = T + np.array([0.,0.,0.0])
+        if(False):
+            T = T + np.array([0.,0.,0.1])
         
                 
                         

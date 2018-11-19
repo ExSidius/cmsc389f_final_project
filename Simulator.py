@@ -127,7 +127,7 @@ class Simulation(): #Rigid Body
     
     
     def runSimulation(self, tick_length, seconds, step):
-        output = np.zeros(self.state_size)
+        output = np.zeros(self.state_size + 3 + 1)
         y0 = np.ones(self.state_size*len(self.bodies))
         yfinal = np.ones(self.state_size*len(self.bodies))
     
@@ -142,13 +142,13 @@ class Simulation(): #Rigid Body
             while(i < self.state_size*len(self.bodies)):
                 y0[i] = yfinal[i]
                 i += 1
-            output = np.vstack((output,y0))
+            output = np.vstack((output,np.append(np.append(y0,self.bodies[0].torque),[t])))
             
             #
             #agent calculations here
             #
                     #forward, back, up, down, left, right, rollleft, rollright
-            agentActions = np.array([0.,0., 0.,0., 1.,0., 0.,0.])
+            agentActions = np.array([1.,0., 0.,0., 0.,0., 0.,1.])
             y0[13:21] = agentActions
             #u = []
             #tlist = []
@@ -170,22 +170,27 @@ class Simulation(): #Rigid Body
                 print("seconds: {0}".format(t))
                 print("X: ", self.bodies[0].X)
                 print("Q: ", self.bodies[0].q)
-                print("L: ", self.bodies[0].P)
+                print("P: ", self.bodies[0].P)
+                print("L: ", self.bodies[0].L)
+                print("tau: ", self.bodies[0].torque)
                 tt = 0.
                 
             t += tick_length
             tt += tick_length
         return output[1:]
 
-    def blockIBody(self,x,y,z,M): #dimensions x,y,z of block, mass M
+    def blockIBody(self,x,y,z,M,funmode=False): #dimensions x,y,z of block, mass M
         block = np.array([[(y*y)+(z*z),0.,0.],[0.,(x*x)+(z*z),0.],[0.,0.,(x*x)+(y*y)]])
+        if(funmode):
+            print("FUNFUNFUNFUNFUNFU")
+            block = np.array([[1.,0.,0.],[0.,2.,0.],[0.,0.,3.]])
         Ibody = block * (M/12)
         #intertia tensor made
         return Ibody
 
-    def createObject(self,mass,dim,X,q,P,L):
+    def createObject(self,mass,dim,X,q,P,L,thrusts):
         Ibody = self.blockIBody(dim[0],dim[1],dim[2],mass)
-        r = rb.Body(mass, Ibody, np.linalg.inv(Ibody), X, q, P, L)
+        r = rb.Body(mass, Ibody, np.linalg.inv(Ibody), X, q, P, L, thrusts)
         self.bodies.append(r)
 
 
