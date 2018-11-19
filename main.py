@@ -1,188 +1,137 @@
-import numpy as np
 import RigidBody as rb
+import Simulator as sm
 
+import numpy as np
 from scipy.integrate import odeint
-import matplotlib.pyplot as plt
-
 from pyquaternion import Quaternion
 
-
-state_size = 13
-bodies = []
-
-
-def State_To_Array(state):
-    y = 0
-    out = np.zeros(state_size)
-    
-    out[y] = state.X[0]; y+=1
-    out[y] = state.X[1]; y+=1
-    out[y] = state.X[2]; y+=1
-    
-    out[y] = state.q.real; y+=1
-    t = state.q.vector
-    out[y] = t[0]; y+=1
-    out[y] = t[1]; y+=1
-    out[y] = t[2]; y+=1
-        
-    out[y] = state.P[0]; y+=1
-    out[y] = state.P[1]; y+=1
-    out[y] = state.P[2]; y+=1
-    
-    out[y] = state.L[0]; y+=1
-    out[y] = state.L[1]; y+=1
-    out[y] = state.L[2]; y+=1
-    
-    return out
-    
-def Star(a):
-    t = np.asarray([[0.,-a[2],a[1]],[a[2],0.,-a[0]],[-a[1],a[0],0.]])
-    return t
-
-def ddt_State_to_Array(state):
-    y = 0
-    out = np.zeros(state_size)
-    out[y] = state.v[0]; y+=1
-    out[y] = state.v[1]; y+=1
-    out[y] = state.v[2]; y+=1
-        
-    omegaq = Quaternion(np.array(np.append([0.],state.omega)))
-    qdot = (omegaq * state.q)
-    qdot = 0.5 * qdot
-    
-    out[y] = qdot.real; y+=1
-    t = qdot.vector
-    out[y] = t[0]; y+=1
-    out[y] = t[1]; y+=1
-    out[y] = t[2]; y+=1
-        
-    out[y] = state.force[0]; y+=1
-    out[y] = state.force[1]; y+=1
-    out[y] = state.force[2]; y+=1
-    
-    out[y] = state.torque[0]; y+=1
-    out[y] = state.torque[1]; y+=1
-    out[y] = state.torque[2]; y+=1
-    
-    return out
-        
-def Array_To_State(state, a):
-    y = 0
-    state.X[0] = a[y]; y+=1
-    state.X[1] = a[y]; y+=1
-    state.X[2] = a[y]; y+=1
-        
-    r = a[y]; y+=1
-    i = a[y]; y+=1
-    j = a[y]; y+=1
-    k = a[y]; y+=1
-    
-    state.q = Quaternion(np.array([r,i,j,k]))
-    
-    state.P[0] = a[y]; y+=1
-    state.P[1] = a[y]; y+=1
-    state.P[2] = a[y]; y+=1
-    
-    state.L[0] = a[y]; y+=1
-    state.L[1] = a[y]; y+=1
-    state.L[2] = a[y]; y+=1
-        
-    #compute the auxillary variables
-    
-    state.v = state.P / state.mass
-    state.IInv = np.matmul(np.matmul(state.R,state.IBodyInv),np.transpose(state.R))
-    state.omega = np.matmul(state.IInv, state.L)
-    state.R = state.q.rotation_matrix
-    
-    #print(np.reshape(state.L,(3,1)))        
-    return state
-                    
-
-def Array_To_Bodies(a):
-    newBodies = []
-    i = 0
-    while(i < len(bodies)):
-        newBodies.append(Array_To_State(bodies[i],a[(i)*state_size:(i+1)*state_size]))
-        i += 1
-    return newBodies
-    
-def Bodies_To_Array():
-    a = np.empty(0)
-    i = 0
-    while(i < len(bodies)):
-        a = np.append(a, State_To_Array(bodies[i]))
-        i += 1
-    return a
-    
-def dydt(y, t):
-    bodies = Array_To_Bodies(y)
-    ydot = np.empty(0)
-    i = 0
-    while(i < len(bodies)):
-        bodies[i].Compute_Force_and_Torque(t)
-        ydot = np.append(ydot, ddt_State_to_Array(bodies[i]))
-        i += 1
-    return ydot
-    
-    
-def runSimulation(bodies, seconds):
-    y0 = np.ones(state_size*len(bodies))
-    yfinal = np.ones(state_size*len(bodies))
-    
-    #init states -> initialize the bodies!
-    yfinal = Bodies_To_Array()
-    
-    t = 0.
-    while(t < seconds): 
-        i = 0
-        while(i < state_size*len(bodies)):
-            y0[i] = yfinal[i]
-            i += 1
-        yfinal = (odeint(dydt,y0,[t, t + 1./30.]))[1]
-        #ode(y0, yfinal, STATE_SIZE * NBODIES, t, t+1./30., dydt);
-        t += 1./30.
-    return bodies
+import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 
-def blockIBody(x,y,z,M): #dimensions x,y,z of block, mass M
-    block = np.array([[(y*y)+(z*z),0.,0.],[0.,(x*x)+(z*z),0.],[0.,0.,(x*x)+(y*y)]])
-    Ibody = block * (M/12)
-    #intertia tensor made
-    return Ibody
-
-def createObject(mass,dim,X,R,P=np.array([0.,0.,0.]),L=np.array([0.,0.,0.])):
-    Ibody = blockIBody(dim[0],dim[1],dim[2],mass)
-    r = rb.Body(mass, Ibody, np.linalg.inv(Ibody), X, R, P, L)
-    return r
-    #    def __init__(self, mass, IBody, IBodyInv, X, R, P, L):
 
 
-#state size is 18
+state_size = 13 + 8 #don't change this, default = 13
+sim = sm.Simulation(state_size) #create simulator
 
-x = np.array([0.,0.5,0.])
-q = Quaternion(np.array([0.,1.,0.,0.]))
-p = np.array([0.,0.,0.])
-l = np.array([0.,0.,0.])
-one = createObject(10., np.array([10.,1.,10.]), x, q, p, l)
-bodies.append(one)
+mass = 10. #mass of the object
+dim = np.array([1.,1.,1.]) #dimensions of the cube object
+x = np.array([0.,0.,0.]) #position
+q = Quaternion(np.array([0.,0.,0.,1.])) #rotation
+p = np.array([0.5,0.,0.]) #linear momentum
+l = np.array([0.,0.,0.]) #angular momentum
+sim.createObject(mass, dim, x, q, p, l) #add cube object to bodies
 
-print(bodies[0].X)
-print(bodies[0].q)
+tick_length = 1./30.  #step length between physics checks, don't change this
+seconds = 6     #seconds to simulate
+step_size = 1.        # intervals to print seconds at. -1 for no print
 
+output = sim.runSimulation(tick_length, seconds, step_size)
+
+
+
+
+
+#Everything past here is for visualization
+
+Z_line = np.ones((output.shape[0],3))
+Y_line = np.ones((output.shape[0],3))
+X_line = np.ones((output.shape[0],3))
+
+r = output[:,3:7]
 i = 0
-while(i < 2): #1000 seconds
-    bodies = runSimulation(bodies, 10)
-    print("{0} seconds".format(i*10))
+while(i < output.shape[0]):
+    tq = Quaternion(r[i])
+    trZ = tq.rotate(np.array([0.,0.,1.]))
+    trY = tq.rotate(np.array([0.,1.,0.]))
+    trX = tq.rotate(np.array([1.,0.,0.]))
+    Z_line[i] = output[i,0:3] + trZ
+    Y_line[i] = output[i,0:3] + trY
+    X_line[i] = output[i,0:3] + trX
     i += 1
 
-print(bodies[0].X)
-print(bodies[0].q)
+mpl.rcParams['legend.fontsize'] = 8
+
+#print(output[output.shape[0]-1,:])
+#print(output[:,2])
+#exit()
+
+#output = output[3100:3300]
+#temp = temp[3100:3300]
+
+fig = plt.figure()
+
+samplemodifier = 4
+samplesize = int(step_size/tick_length) * samplemodifier
+output = output[0::samplesize]
+print(output.shape[0])
+
+ax = fig.gca(projection='3d')
+
+colors = np.zeros((output.shape[0],3))
+i = 0
+while(i < colors.shape[0]):
+    colors[i,0] = i / colors.shape[0]
+    colors[i,1] = 0
+    colors[i,2] = 0
+    i += 1
+
+ax.scatter(output[:,0], output[:,1], output[:,2], label='X, every {0} seconds'.format(step_size*samplemodifier), color=colors)
+
+f = X_line.shape[0]
+s = output[output.shape[0]-1,0:3]
+e = X_line[f-1]
+se = np.vstack((s,e))
+
+h1 = output[0,0:3]
+h2 = X_line[0]
+h3 = np.vstack((h1,h2))
+
+ax.plot(X_line[:,0], X_line[:,1], X_line[:,2], label='X+rot*[1,0,0]   X', color=(1,0,0))
+ax.scatter(X_line[0,0], X_line[0,1], X_line[0,2], color='r', marker='o')                  #circle = start
+ax.scatter(X_line[f-1:f,0], X_line[f-1:f,1], X_line[f-1:f,2], color='r', marker='^')      #triangle = end
+ax.plot(se[:,0],se[:,1],se[:,2], color = 'k') #line between last position and the last X,Y,or Z marker
+ax.plot(h3[:,0],h3[:,1],h3[:,2], color = (1.,1.,.4)) #line between the first position and the first X,Y,or Z marker
+
+f = Y_line.shape[0]
+s = output[output.shape[0]-1,0:3]
+e = Y_line[f-1]
+se = np.vstack((s,e))
+h1 = output[0,0:3]
+h2 = Y_line[0]
+h3 = np.vstack((h1,h2))
+
+f = Y_line.shape[0]
+ax.plot(Y_line[:,0], Y_line[:,1], Y_line[:,2], label='X+rot*[0,1,0]   Y', color=(0,1,0))
+ax.scatter(Y_line[0,0], Y_line[0,1], Y_line[0,2], color='r', marker='o')                  #circle = start
+ax.scatter(Y_line[f-1:f,0], Y_line[f-1:f,1], Y_line[f-1:f,2], color='r', marker='^')      #triangle = end
+ax.plot(se[:,0],se[:,1],se[:,2], color = 'k') #line between last position and the last X,Y,or Z marker
+ax.plot(h3[:,0],h3[:,1],h3[:,2], color = (1.,1.,.4)) #line between the first position and the first X,Y,or Z marker
+
+f = Z_line.shape[0]
+s = output[output.shape[0]-1,0:3]
+e = Z_line[f-1]
+se = np.vstack((s,e))
+h1 = output[0,0:3]
+h2 = Z_line[0]
+h3 = np.vstack((h1,h2))
+
+f = Z_line.shape[0]
+ax.plot(Z_line[:,0], Z_line[:,1], Z_line[:,2], label='X+rot*[0,0,1]   Z', color=(0,0,1))
+ax.scatter(Z_line[0,0], Z_line[0,1], Z_line[0,2], color='r', marker='o')                  #circle = start
+ax.scatter(Z_line[f-1:f,0], Z_line[f-1:f,1], Z_line[f-1:f,2], color='r', marker='^')      #triangle = end
+ax.plot(se[:,0],se[:,1],se[:,2], color = 'k') #line between last position and the last X,Y,or Z marker
+ax.plot(h3[:,0],h3[:,1],h3[:,2], color = (1.,1.,.4)) #line between the first position and the first X,Y,or Z marker
 
 
 
 
+#ax.plot(output[:,7], output[:,8], output[:,9], label='rot', color='g')
 
 
-
-
-
+ax.legend()
+ax.set_xlabel("X")
+ax.set_ylabel("Y")
+ax.set_zlabel("Z")
+plt.show()
