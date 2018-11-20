@@ -4,6 +4,8 @@ import RigidBody as rb
 from scipy.integrate import ode
 import matplotlib.pyplot as plt
 
+import copy
+
 from pyquaternion import Quaternion
 
 
@@ -11,6 +13,7 @@ class Simulation(): #Rigid Body
     def __init__(self, state_size): 
         self.state_size = state_size
         self.bodies = []
+        self.projectileCount = 0
 
     def State_To_Array(self, state):
         y = 0
@@ -124,10 +127,36 @@ class Simulation(): #Rigid Body
             ydot = np.append(ydot, self.ddt_State_to_Array(self.bodies[i]))
             i += 1
         return ydot
+        
+    def blockIBody(self,x,y,z,M,funmode=False): #dimensions x,y,z of block, mass M
+        block = np.array([[(y*y)+(z*z),0.,0.],[0.,(x*x)+(z*z),0.],[0.,0.,(x*x)+(y*y)]])
+        if(funmode):
+            print("FUNFUNFUNFUNFUNFU")
+            block = np.array([[1.,0.,0.],[0.,2.,0.],[0.,0.,3.]])
+        Ibody = block * (M/12)
+        #intertia tensor made
+        return Ibody
+
+    def createObject(self,mass,dim,X,q,P,L, objectType, objectName="unknown", thrusts=np.array([0.,0., 0.,0., 0.,0., 0.,0.]),loadtime=1e+9):
+        Ibody = self.blockIBody(dim[0],dim[1],dim[2],mass)
+        r = rb.Body(mass, Ibody, np.linalg.inv(Ibody), X, q, P, L, objectType, objectName, thrusts, loadtime)
+        self.bodies.append(r)
     
+    def addProjectile(self, parent, firespeed):
+        mass = 0.25 #mass of the object
+        dim = np.array([0.1,0.1,0.1]) #dimensions of the cube object
+        x = parent.X + np.matmul(parent.R, np.array([0.,0.,1.5])) #position
+        q = parent.q #rotation
+        p = parent.P + np.matmul(parent.R, np.array([0.,0.,firespeed])) #linear momentum
+        l = np.array([0.,0.,0.]) #angular momentum
+        objectType = "Projectile"
+        objectName = "Projectile_{0}".format(self.projectileCount); self.projectileCount += 1
+            #forward, back, up, down, left, right, rollleft, rollright
+        self.createObject(mass, dim, x, q, p, l, objectType, objectName) #add cube object to bodies
     
     def runSimulation(self, tick_length, seconds, step):
-        output = np.zeros(self.state_size + 3 + 1)
+        output = np.empty(0)
+        entityTracker = []
         y0 = np.ones(self.state_size*len(self.bodies))
         yfinal = np.ones(self.state_size*len(self.bodies))
     
@@ -142,14 +171,39 @@ class Simulation(): #Rigid Body
             while(i < self.state_size*len(self.bodies)):
                 y0[i] = yfinal[i]
                 i += 1
-            output = np.vstack((output,np.append(np.append(y0,self.bodies[0].torque),[t])))
+                
+            output = np.append(output,y0)
+            entities = []
+            for b in self.bodies:
+                entities.append(b.objectName)
+            entityTracker.append(entities)
             
             #
             #agent calculations here
             #
                     #forward, back, up, down, left, right, rollleft, rollright
-            agentActions = np.array([1.,0., 0.,0., 0.,0., 0.,1.])
-            y0[13:21] = agentActions
+                
+            i = 0
+            while(i < len(self.bodies)):
+                if(self.bodies[i].objectType == "Agent"):    #perform AI actions          
+                    if(t <= (10*tick_length)):              
+                        agentActions = np.array([0.,0., 1.,0., 0.,0., 0.,0.])    
+                    elif((t > (10*tick_length)) and (t <= (20*tick_length))):
+                        agentActions = np.array([0.,0., 0.,1., 0.,0., 0.,0.])
+                    else:
+                        agentActions = np.array([0.,0., 0.,0., 0.,0., 0.,0.])
+                        
+                    if((t >= tick_length*10) and (t < tick_length*11)):  #shooting a projectile
+                        print("FIRE FIRE FIRE")
+                        self.addProjectile(self.bodies[i], 50.)
+                        y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
+                        yfinal = y0
+                else: #object has no actions
+                    agentActions = np.array([0.,0., 0.,0., 0.,0., 0.,0.])
+                    
+                y0[(i*self.state_size)+13:(i*self.state_size)+21] = agentActions
+                i += 1
+            
             #u = []
             #tlist = []
             
@@ -177,21 +231,9 @@ class Simulation(): #Rigid Body
                 
             t += tick_length
             tt += tick_length
-        return output[1:]
+        return output, entityTracker
 
-    def blockIBody(self,x,y,z,M,funmode=False): #dimensions x,y,z of block, mass M
-        block = np.array([[(y*y)+(z*z),0.,0.],[0.,(x*x)+(z*z),0.],[0.,0.,(x*x)+(y*y)]])
-        if(funmode):
-            print("FUNFUNFUNFUNFUNFU")
-            block = np.array([[1.,0.,0.],[0.,2.,0.],[0.,0.,3.]])
-        Ibody = block * (M/12)
-        #intertia tensor made
-        return Ibody
 
-    def createObject(self,mass,dim,X,q,P,L,thrusts):
-        Ibody = self.blockIBody(dim[0],dim[1],dim[2],mass)
-        r = rb.Body(mass, Ibody, np.linalg.inv(Ibody), X, q, P, L, thrusts)
-        self.bodies.append(r)
 
 
 
