@@ -34,6 +34,7 @@ class Body(): #Rigid Body
         #computed quantities
         self.force = np.array([0.,0.,0.])
         self.torque = np.array([0.,0.,0.])
+        self.alive = True
         
     def checkFire(self, t):
         #check and see if the agent can fire
@@ -41,24 +42,51 @@ class Body(): #Rigid Body
             return True
     
     def Compute_Force_and_Torque(self, y, t):
-        #planet_position = [0.,0.,0.]
+        planet_position = np.array([0.,0.,0.])
         F = np.array([0.,0.,0.])
         T = np.array([0.,0.,0.])
         
-        gravity = False
-        if(gravity):
-            planet_mass = 100000000000
-            r = np.linalg.norm(self.X)
-            if(r > 1.):
+        gravity = True
+        planetRadius = 1.
+        if(gravity and self.alive):
+            planet_mass = 10000000000
+            
+            collision = False
+            
+            p1 = self.X
+            p2 = self.X + (self.P/self.mass)
+            pA = planet_position
+            
+            directionP = p2 - p1
+            tempB = p1 - pA
+            
+            t = -(np.sum(directionP*tempB))/np.sum(directionP*directionP)
+            X = p1 + (t*directionP)
+            dist1 = np.linalg.norm(X - p1)
+            dist2 = np.linalg.norm(X - p2)
+            dist3 = np.linalg.norm(p1 - p2)
+            
+            tdist = dist1 + dist2
+            e = 0.0001
+            if(tdist >= dist3 - e and tdist <= dist3 + e):
+                AX = tempB + (t*directionP)
+                minDistance = np.linalg.norm(AX)
+                if(minDistance <= planetRadius):
+                    collision = True
+                        
+            if(not collision):
+                r = np.linalg.norm(self.X)
                 r2 = np.power(r,3)
                 F = F + np.multiply(-((scipy.constants.gravitational_constant)*planet_mass*self.mass)/r2,self.X)
             else:
-                F = F - np.matmul(self.R, self.P)
-                #print("hit planet")            
+                #F = F + np.matmul(self.R, -self.P)
+                self.alive = False
+                print("hit planet")            
 
         #state_size = 13 + 8 = 21
-        
-        if(self.objectType == "Agent"):
+       
+
+        if(self.objectType == "Agent" and self.alive):
             goforward = y[13]
             if(goforward):
                 thrust = self.thrusts[0]     

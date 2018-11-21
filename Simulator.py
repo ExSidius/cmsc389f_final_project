@@ -46,9 +46,14 @@ class Simulation(): #Rigid Body
     def ddt_State_to_Array(self, state):
         y = 0
         out = np.zeros(self.state_size)
-        out[y] = state.v[0]; y+=1
-        out[y] = state.v[1]; y+=1
-        out[y] = state.v[2]; y+=1
+        if(state.alive):
+            out[y] = state.v[0]; y+=1
+            out[y] = state.v[1]; y+=1
+            out[y] = state.v[2]; y+=1
+        else:
+            out[y] = 0; y+=1
+            out[y] = 0; y+=1
+            out[y] = 0; y+=1
         
         omegaq = Quaternion(np.array(np.append([0.],state.omega)))
         qdot = (omegaq * state.q)
@@ -143,9 +148,9 @@ class Simulation(): #Rigid Body
         self.bodies.append(r)
     
     def addProjectile(self, parent, firespeed):
-        mass = 0.25 #mass of the object
+        mass = 1. #mass of the object
         dim = np.array([0.1,0.1,0.1]) #dimensions of the cube object
-        x = parent.X + np.matmul(parent.R, np.array([0.,0.,1.5])) #position
+        x = parent.X + np.matmul(parent.R, np.array([0.,0.,0.5])) #position
         q = parent.q #rotation
         p = parent.P + np.matmul(parent.R, np.array([0.,0.,firespeed])) #linear momentum
         l = np.array([0.,0.,0.]) #angular momentum
@@ -185,17 +190,40 @@ class Simulation(): #Rigid Body
                 
             i = 0
             while(i < len(self.bodies)):
+                #if(self.bodies[i].alive == False):
+                    
                 if(self.bodies[i].objectType == "Agent"):    #perform AI actions          
                     if(t <= (10*tick_length)):              
                         agentActions = np.array([0.,0., 1.,0., 0.,0., 0.,0.])    
                     elif((t > (10*tick_length)) and (t <= (20*tick_length))):
-                        agentActions = np.array([0.,0., 0.,1., 0.,0., 0.,0.])
+                        agentActions = np.array([0.,0., 0.,0., 0.,0., 0.,0.])
                     else:
                         agentActions = np.array([0.,0., 0.,0., 0.,0., 0.,0.])
                         
-                    if((t >= tick_length*10) and (t < tick_length*11)):  #shooting a projectile
+                    if(False):
+                        if((t >= tick_length*10) and (t < tick_length*11)):  #shooting a projectile
+                            print("FIRE FIRE FIRE")
+                            self.addProjectile(self.bodies[i], 0.005)
+                            y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
+                            yfinal = y0
+                        if((t >= tick_length*21) and (t < tick_length*22)):  #shooting a projectile
+                            print("FIRE FIRE FIRE")
+                            self.addProjectile(self.bodies[i], 0.01)
+                            y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
+                            yfinal = y0
+                        if((t >= tick_length*33) and (t < tick_length*34)):  #shooting a projectile
+                            print("FIRE FIRE FIRE")
+                            self.addProjectile(self.bodies[i], 0.02)
+                            y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
+                            yfinal = y0
+                        if((t >= tick_length*45) and (t < tick_length*46)):  #shooting a projectile
+                            print("FIRE FIRE FIRE")
+                            self.addProjectile(self.bodies[i], 0.03)
+                            y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
+                            yfinal = y0
+                    if((t >= tick_length*57) and (t < tick_length*58)):  #shooting a projectile
                         print("FIRE FIRE FIRE")
-                        self.addProjectile(self.bodies[i], 50.)
+                        self.addProjectile(self.bodies[i], 0.04)
                         y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
                         yfinal = y0
                 else: #object has no actions
@@ -222,11 +250,13 @@ class Simulation(): #Rigid Body
             
             if(step != -1 and tt >= step):
                 print("seconds: {0}".format(t))
-                print("X: ", self.bodies[0].X)
-                print("Q: ", self.bodies[0].q)
-                print("P: ", self.bodies[0].P)
-                print("L: ", self.bodies[0].L)
-                print("tau: ", self.bodies[0].torque)
+                if(len(self.bodies) > 1):
+                    body = 1
+                    print("X: ", self.bodies[body].X)
+                    print("Q: ", self.bodies[body].q)
+                    print("P: ", self.bodies[body].P)
+                    print("L: ", self.bodies[body].L)
+                    print("tau: ", self.bodies[body].torque)
                 tt = 0.
                 
             t += tick_length

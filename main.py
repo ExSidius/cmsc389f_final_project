@@ -16,9 +16,9 @@ sim = sm.Simulation(state_size) #create simulator
 
 mass = 10. #mass of the object
 dim = np.array([1.,1.,1.]) #dimensions of the cube object
-x = np.array([0.,0.,10.]) #position
+x = np.array([10.,0.,1.]) #position
 q = Quaternion(np.array([0.,0.,0.,1.])) #rotation
-p = np.array([0.,0.,0.5]) #linear momentum
+p = np.array([0.,0.,0.]) #linear momentum
 l = np.array([0.,0.,0.]) #angular momentum
 objectType = "Agent"
 objectName = "Prime"
@@ -31,21 +31,37 @@ sim.createObject(mass, dim, x, q, p, l, objectType, objectName, thrusts, loadtim
 #TODO: make it so that objects recieve a unique ID to fix unique name requirement
 
 tick_length = 1./30.  #step length between physics checks, don't change this
-seconds = 30.     #seconds to simulate
+seconds = 50.     #seconds to simulate
 step_size = 1.        # intervals to print seconds at. -1 for no print
 
 output, entityTracker = sim.runSimulation(tick_length, seconds, step_size)
 
-
 #Everything past here is for visualization
 
-sampleRateModifier = 4
-sampleRate = int(step_size/tick_length) * sampleRateModifier
+maxSamples = 100
+if((seconds/tick_length) < maxSamples):
+    sampleRate = 1
+else:
+    sampleRate = int((seconds/tick_length)/maxSamples)
+
+print(sampleRate)
+    
+    
+#sampleRate = int((seconds*tick_length) * 4)
+
 
 v = outputParse.Visualizer(sampleRate)
-v.addObjectToVisualize("Prime", True, 0)
-v.addObjectToVisualize("Projectile_0", False, 1)
-v.visualizeOutput(output, entityTracker, state_size)
+#                       Name,  Rotation, Color(0,1,2), Line?
+v.addObjectToVisualize("Prime", False, 0, False)
+v.addObjectToVisualize("Projectile_0", False, 1, True)
+#v.addObjectToVisualize("Projectile_1", False, 1, True)
+#v.addObjectToVisualize("Projectile_2", False, 1, True)
+#v.addObjectToVisualize("Projectile_3", False, 1, True)
+#v.addObjectToVisualize("Projectile_4", False, 1, True)
+
+boxsize = 15.
+trim = False
+v.visualizeOutput(output, entityTracker, state_size, boxsize, trim)
 
 
 

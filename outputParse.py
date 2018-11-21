@@ -11,10 +11,11 @@ class Visualizer():
         mpl.rcParams['legend.fontsize'] = fontSize
         fig = plt.figure()
         self.ax = fig.gca(projection='3d')
-        
+        #self.ax.set_aspect('equal')
         self.objectsToVisualize = []
         self.objectsToVisualizeRotations = []
         self.objectsToVisualizeColors = [] 
+        self.objectsToVisualizeLines = []
         self.sampleRate = sampleRate
 
     def isolateObject(self, output, entityTracker, state_size, objectName):
@@ -45,9 +46,22 @@ class Visualizer():
         y0 = y0[1:,:] #cut off the initialized zero row
         print("{0} began existence at tick {1} and lasted for {2} ticks".format(objectName, firstContact, y0.shape[0]))
         return y0, firstContact
+        
+    def trimPositions(self, samples, size):
+        newPos = np.zeros(samples.shape[1])
+        i = 0
+        while(i < samples.shape[0]):
+            if(samples[i,0] < size and samples[i,0] > -size):
+                if(samples[i,1] < size and samples[i,1] > -size):
+                    if(samples[i,2] < size or samples[i,2] > -size):
+                        newPos = np.vstack((newPos, samples[i,:]))
+            i += 1
+        return newPos[1:,:]
     
-    def plotObject(self, name, startTime, y0, color=0, sampleRateMod=4, rotation=False):
+    def plotObject(self, name, startTime, y0, color=0, sampleRateMod=4, rotation=False, line=False, trim=False, boxsize=5):
         Xsamples = y0[0::self.sampleRate]
+        if(trim):
+            Xsamples = self.trimPositions(Xsamples,boxsize)
         colors = np.zeros((Xsamples.shape[0],3))
         i = 0
         while(i < colors.shape[0]): 
@@ -66,8 +80,12 @@ class Visualizer():
             i += 1
         
         #plot the sampled position points with a color gradient
-        self.ax.scatter(Xsamples[:,0], Xsamples[:,1], Xsamples[:,2], 
-            label='X, every {0} ticks'.format(self.sampleRate), color=colors)
+        #self.ax.scatter(Xsamples[:,0], Xsamples[:,1], Xsamples[:,2], 
+            #label='X, every {0} ticks'.format(self.sampleRate), color=colors)
+        if(line):
+            self.ax.plot(Xsamples[:,0], Xsamples[:,1], Xsamples[:,2], color=colors[colors.shape[0]-1])
+        else:
+            self.ax.scatter(Xsamples[:,0], Xsamples[:,1], Xsamples[:,2], color=colors)
     
         if(rotation):
             Z_line = np.ones((y0.shape[0],3))
@@ -133,25 +151,41 @@ class Visualizer():
             self.ax.plot(axisEnd[:,0],axisEnd[:,1],axisEnd[:,2], color = 'k') 
             #line between last position and the last X,Y,or Z marker
     
-    def addObjectToVisualize(self, objectName, rotation = False, color = 0):
+    def addObjectToVisualize(self, objectName, rotation = False, color = 0, line = False):
         self.objectsToVisualize.append(objectName)
         self.objectsToVisualizeRotations.append(rotation)
         self.objectsToVisualizeColors.append(color)
-        print("Visualizing {0} with color option {1} and with rotation set to {2}".format(objectName, color, rotation))
+        self.objectsToVisualizeLines.append(line)
+        print("Visualizing {0} with color option {1}, rotation set to {2}, with line option {3}".format(objectName, color, rotation, line))
         
-    def visualizeOutput(self, output, entityTracker, state_size):
+    def visualizeOutput(self, output, entityTracker, state_size, boxsize=10., trim=False):
+        if(trim):
+            #box around planet:
+            self.ax.scatter(-boxsize,-boxsize,-boxsize, marker='o', color=(0.,0.,0.))
+            self.ax.scatter(-boxsize,-boxsize, boxsize, marker='o', color=(0.,0.,0.))
+            self.ax.scatter(-boxsize, boxsize,-boxsize, marker='o', color=(0.,0.,0.))
+            self.ax.scatter(-boxsize, boxsize, boxsize, marker='o', color=(0.,0.,0.))
+            self.ax.scatter( boxsize,-boxsize,-boxsize, marker='o', color=(0.,0.,0.))
+            self.ax.scatter( boxsize,-boxsize, boxsize, marker='o', color=(0.,0.,0.))
+            self.ax.scatter( boxsize, boxsize,-boxsize, marker='o', color=(0.,0.,0.))
+            self.ax.scatter( boxsize, boxsize, boxsize, marker='o', color=(0.,0.,0.))
+        
+        self.ax.scatter(0,0,0, marker='o', color=(0.5,0.5,0.5), s=100)
+                
         i = 0
         while(i < len(self.objectsToVisualize)):
             y0,start = self.isolateObject(output, entityTracker, state_size, self.objectsToVisualize[i])
             self.plotObject(self.objectsToVisualize[i], start, y0, 
-                    self.objectsToVisualizeColors[i], self.sampleRate, self.objectsToVisualizeRotations[i])
-            #def plotObject(name, startTime, y0, color=0, sampleRateMod=4, rotation=False):
+                    self.objectsToVisualizeColors[i], self.sampleRate, 
+                    self.objectsToVisualizeRotations[i], self.objectsToVisualizeLines[i],
+                    trim, boxsize)
             i += 1
         
         self.ax.legend()
-        self.ax.set_xlabel("X")
-        self.ax.set_ylabel("Y")
-        self.ax.set_zlabel("Z")
+        self.ax.set_xlabel("X (position)")
+        self.ax.set_ylabel("Y (position)")
+        self.ax.set_zlabel("Z (position)")
+        
         plt.show()
         
         
