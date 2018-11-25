@@ -16,6 +16,7 @@ class Visualizer():
         self.objectsToVisualizeRotations = []
         self.objectsToVisualizeColors = [] 
         self.objectsToVisualizeLines = []
+        self.objectsToVisualizeCheckpoints = []
         self.sampleRate = sampleRate
 
     def isolateObject(self, output, entityTracker, state_size, objectName):
@@ -58,10 +59,12 @@ class Visualizer():
             i += 1
         return newPos[1:,:]
     
-    def plotObject(self, name, startTime, y0, color=0, sampleRateMod=4, rotation=False, line=False, trim=False, boxsize=5):
+    def plotObject(self, name, startTime, y0, color=0, sampleRateMod=4, rotation=False,
+                     line=False, checkpoints=0, trim=False, boxsize=5):
         Xsamples = y0[0::self.sampleRate]
         if(trim):
             Xsamples = self.trimPositions(Xsamples,boxsize)
+            
         colors = np.zeros((Xsamples.shape[0],3))
         i = 0
         while(i < colors.shape[0]): 
@@ -82,10 +85,17 @@ class Visualizer():
         #plot the sampled position points with a color gradient
         #self.ax.scatter(Xsamples[:,0], Xsamples[:,1], Xsamples[:,2], 
             #label='X, every {0} ticks'.format(self.sampleRate), color=colors)
+        
         if(line):
             self.ax.plot(Xsamples[:,0], Xsamples[:,1], Xsamples[:,2], color=colors[colors.shape[0]-1])
         else:
             self.ax.scatter(Xsamples[:,0], Xsamples[:,1], Xsamples[:,2], color=colors)
+        
+        if(checkpoints > 0): #pick out points to mark as checkpoints
+            csampleRate = int(Xsamples.shape[0] / checkpoints)
+            checkPointSamples = Xsamples[0::csampleRate]
+            self.ax.scatter(checkPointSamples[:,0], checkPointSamples[:,1], checkPointSamples[:,2], color=(0.,0.,0.))
+            
     
         if(rotation):
             Z_line = np.ones((y0.shape[0],3))
@@ -151,11 +161,12 @@ class Visualizer():
             self.ax.plot(axisEnd[:,0],axisEnd[:,1],axisEnd[:,2], color = 'k') 
             #line between last position and the last X,Y,or Z marker
     
-    def addObjectToVisualize(self, objectName, rotation = False, color = 0, line = False):
+    def addObjectToVisualize(self, objectName, rotation = False, color = 0, line = False, checkpoints=0):
         self.objectsToVisualize.append(objectName)
         self.objectsToVisualizeRotations.append(rotation)
         self.objectsToVisualizeColors.append(color)
         self.objectsToVisualizeLines.append(line)
+        self.objectsToVisualizeCheckpoints.append(checkpoints)
         print("Visualizing {0} with color option {1}, rotation set to {2}, with line option {3}".format(objectName, color, rotation, line))
         
     def visualizeOutput(self, output, entityTracker, state_size, boxsize=10., trim=False):
@@ -170,15 +181,15 @@ class Visualizer():
             self.ax.scatter( boxsize, boxsize,-boxsize, marker='o', color=(0.,0.,0.))
             self.ax.scatter( boxsize, boxsize, boxsize, marker='o', color=(0.,0.,0.))
         
-        self.ax.scatter(0,0,0, marker='o', color=(0.5,0.5,0.5), s=100)
+        self.ax.scatter(0,0,0, marker='o', color=(0.5,0.5,0.5))
                 
         i = 0
         while(i < len(self.objectsToVisualize)):
             y0,start = self.isolateObject(output, entityTracker, state_size, self.objectsToVisualize[i])
             self.plotObject(self.objectsToVisualize[i], start, y0, 
                     self.objectsToVisualizeColors[i], self.sampleRate, 
-                    self.objectsToVisualizeRotations[i], self.objectsToVisualizeLines[i],
-                    trim, boxsize)
+                    self.objectsToVisualizeRotations[i], self.objectsToVisualizeLines[i], 
+                    self.objectsToVisualizeCheckpoints[i], trim, boxsize)
             i += 1
         
         self.ax.legend()

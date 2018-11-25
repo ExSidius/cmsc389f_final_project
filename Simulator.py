@@ -7,6 +7,13 @@ import matplotlib.pyplot as plt
 import copy
 
 from pyquaternion import Quaternion
+from numba import jit
+
+@jit (nopython=True)
+def getIInvandOmega(R, IBodyInv, L):
+    iinv = np.dot(np.dot(R,IBodyInv),np.transpose(R))
+    omega = np.dot(iinv, L)
+    return iinv, omega
 
 
 class Simulation(): #Rigid Body 
@@ -14,7 +21,6 @@ class Simulation(): #Rigid Body
         self.state_size = state_size
         self.bodies = []
         self.projectileCount = 0
-
     def State_To_Array(self, state):
         y = 0
         out = np.zeros(self.state_size)
@@ -39,21 +45,13 @@ class Simulation(): #Rigid Body
     
         return out
     
-    def Star(self, a):
-        t = np.asarray([[0.,-a[2],a[1]],[a[2],0.,-a[0]],[-a[1],a[0],0.]])
-        return t
 
     def ddt_State_to_Array(self, state):
         y = 0
         out = np.zeros(self.state_size)
-        if(state.alive):
-            out[y] = state.v[0]; y+=1
-            out[y] = state.v[1]; y+=1
-            out[y] = state.v[2]; y+=1
-        else:
-            out[y] = 0; y+=1
-            out[y] = 0; y+=1
-            out[y] = 0; y+=1
+        out[y] = state.v[0]; y+=1
+        out[y] = state.v[1]; y+=1
+        out[y] = state.v[2]; y+=1
         
         omegaq = Quaternion(np.array(np.append([0.],state.omega)))
         qdot = (omegaq * state.q)
@@ -65,9 +63,14 @@ class Simulation(): #Rigid Body
         out[y] = t[1]; y+=1
         out[y] = t[2]; y+=1
         
-        out[y] = state.force[0]; y+=1
-        out[y] = state.force[1]; y+=1
-        out[y] = state.force[2]; y+=1
+        if(state.alive):
+            out[y] = state.force[0]; y+=1
+            out[y] = state.force[1]; y+=1
+            out[y] = state.force[2]; y+=1
+        else:
+            out[y] = 0; y+=1
+            out[y] = 0; y+=1
+            out[y] = 0; y+=1
     
         out[y] = state.torque[0]; y+=1
         out[y] = state.torque[1]; y+=1
@@ -100,8 +103,9 @@ class Simulation(): #Rigid Body
     
         state.v = state.P / state.mass
         state.R = state.q.rotation_matrix
-        state.IInv = np.matmul(np.matmul(state.R,state.IBodyInv),np.transpose(state.R))
-        state.omega = np.matmul(state.IInv, state.L)
+        state.IInv, state.omega = getIInvandOmega(state.R, state.IBodyInv, state.L) 
+        #np.matmul(np.matmul(state.R,state.IBodyInv),np.transpose(state.R))
+        #state.omega = np.matmul(state.IInv, state.L)
     
         #print(np.reshape(state.L,(3,1)))        
         return state
@@ -138,8 +142,7 @@ class Simulation(): #Rigid Body
         if(funmode):
             print("FUNFUNFUNFUNFUNFU")
             block = np.array([[1.,0.,0.],[0.,2.,0.],[0.,0.,3.]])
-        Ibody = block * (M/12)
-        #intertia tensor made
+        Ibody = block * (M/12)  
         return Ibody
 
     def createObject(self,mass,dim,X,q,P,L, objectType, objectName="unknown", thrusts=np.array([0.,0., 0.,0., 0.,0., 0.,0.]),loadtime=1e+9):
@@ -159,7 +162,24 @@ class Simulation(): #Rigid Body
             #forward, back, up, down, left, right, rollleft, rollright
         self.createObject(mass, dim, x, q, p, l, objectType, objectName) #add cube object to bodies
     
-    def runSimulation(self, tick_length, seconds, step):
+    def removeObject(self, y0, name):
+        currentSize = y0.shape[0]
+        newBodies = []
+        index = 0
+        i = 0
+        while(i < len(self.bodies)):
+            if(self.bodies[i].objectName == name):
+                index = i
+            else:
+                newBodies.append(self.bodies[i])
+            i += 1
+        ynew = np.append(y0[0:(index*self.state_size)],y0[(index+1)*self.state_size:])
+        self.bodies = newBodies
+        return ynew
+        
+            
+    
+    def runSimulation(self, tick_length, seconds, step, verbose):
         output = np.empty(0)
         entityTracker = []
         y0 = np.ones(self.state_size*len(self.bodies))
@@ -187,11 +207,17 @@ class Simulation(): #Rigid Body
             #agent calculations here
             #
                     #forward, back, up, down, left, right, rollleft, rollright
-                
+            i = 0
+            while(i < len(self.bodies)):
+                if(self.bodies[i].alive == False):
+                    y0 = self.removeObject(y0, self.bodies[i].objectName)
+                    i -= 1
+                i += 1
+            
             i = 0
             while(i < len(self.bodies)):
                 #if(self.bodies[i].alive == False):
-                    
+                
                 if(self.bodies[i].objectType == "Agent"):    #perform AI actions          
                     if(t <= (10*tick_length)):              
                         agentActions = np.array([0.,0., 1.,0., 0.,0., 0.,0.])    
@@ -202,27 +228,32 @@ class Simulation(): #Rigid Body
                         
                     if(False):
                         if((t >= tick_length*10) and (t < tick_length*11)):  #shooting a projectile
-                            print("FIRE FIRE FIRE")
+                            if(verbose):
+                                print("FIRE FIRE FIRE")
                             self.addProjectile(self.bodies[i], 0.005)
                             y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
                             yfinal = y0
                         if((t >= tick_length*21) and (t < tick_length*22)):  #shooting a projectile
-                            print("FIRE FIRE FIRE")
+                            if(verbose):
+                                print("FIRE FIRE FIRE")
                             self.addProjectile(self.bodies[i], 0.01)
                             y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
                             yfinal = y0
                         if((t >= tick_length*33) and (t < tick_length*34)):  #shooting a projectile
-                            print("FIRE FIRE FIRE")
+                            if(verbose):
+                                print("FIRE FIRE FIRE")
                             self.addProjectile(self.bodies[i], 0.02)
                             y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
                             yfinal = y0
                         if((t >= tick_length*45) and (t < tick_length*46)):  #shooting a projectile
-                            print("FIRE FIRE FIRE")
+                            if(verbose):
+                                print("FIRE FIRE FIRE")
                             self.addProjectile(self.bodies[i], 0.03)
                             y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
                             yfinal = y0
                     if((t >= tick_length*57) and (t < tick_length*58)):  #shooting a projectile
-                        print("FIRE FIRE FIRE")
+                        if(verbose):
+                            print("FIRE FIRE FIRE")
                         self.addProjectile(self.bodies[i], 0.04)
                         y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
                         yfinal = y0
@@ -235,9 +266,12 @@ class Simulation(): #Rigid Body
             #u = []
             #tlist = []
             
-            r = ode(self.dydt).set_integrator('vode', method='adams',
-                                    order=10, rtol=0., atol=1e-9,
-                                    with_jacobian=False, nsteps=10)
+            r = ode(self.dydt).set_integrator('dop853', rtol=0., atol=1e-9,nsteps=10)
+            
+            #r = ode(self.dydt).set_integrator('vode', method='adams',
+            #                        order=10, rtol=0., atol=1e-9,
+            #                        with_jacobian=False, nsteps=10)
+            
             
             r.set_initial_value(y0,0)
             
@@ -249,14 +283,15 @@ class Simulation(): #Rigid Body
             yfinal = r.y
             
             if(step != -1 and tt >= step):
-                print("seconds: {0}".format(t))
-                if(len(self.bodies) > 1):
-                    body = 1
-                    print("X: ", self.bodies[body].X)
-                    print("Q: ", self.bodies[body].q)
-                    print("P: ", self.bodies[body].P)
-                    print("L: ", self.bodies[body].L)
-                    print("tau: ", self.bodies[body].torque)
+                if(verbose):
+                    print("seconds: {0}".format(t))
+                    if(len(self.bodies) > 1):
+                        body = 1
+                        print("X: ", self.bodies[body].X)
+                        print("Q: ", self.bodies[body].q)
+                        print("P: ", self.bodies[body].P)
+                        print("L: ", self.bodies[body].L)
+                        print("tau: ", self.bodies[body].torque)
                 tt = 0.
                 
             t += tick_length
