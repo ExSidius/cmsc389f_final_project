@@ -21,6 +21,7 @@ class Simulation(): #Rigid Body
         self.state_size = state_size
         self.bodies = []
         self.projectileCount = 0
+        self.resetState = np.zeros(state_size)
     def State_To_Array(self, state):
         y = 0
         out = np.zeros(self.state_size)
@@ -175,8 +176,7 @@ class Simulation(): #Rigid Body
             i += 1
         ynew = np.append(y0[0:(index*self.state_size)],y0[(index+1)*self.state_size:])
         self.bodies = newBodies
-        return ynew
-            
+        return ynew        
     
     def createSimulation(self, tick_length, trackTotalOutput):
         self.trackTotalOutput = trackTotalOutput
@@ -190,8 +190,12 @@ class Simulation(): #Rigid Body
         self.t = 0.
         self.r = ode(self.dydt).set_integrator('dop853', rtol=0., atol=1e-9,nsteps=100)
         self.yfinal = self.Bodies_To_Array() 
+        self.resetState = yfinal
         return self.yfinal
         
+    def reset(self):
+        self.yfinal = self.resetState
+        self.bodies = self.Array_To_Bodies(self.resetState)
     
     def runSimulation(self, agentActions):       
         self.yfinal = self.Bodies_To_Array() 
