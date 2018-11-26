@@ -9,7 +9,7 @@ import copy
 from pyquaternion import Quaternion
 from numba import jit
 
-@jit (nopython=True)
+@jit (nopython=True, cache=True)
 def getIInvandOmega(R, IBodyInv, L):
     iinv = np.dot(np.dot(R,IBodyInv),np.transpose(R))
     omega = np.dot(iinv, L)
@@ -176,129 +176,81 @@ class Simulation(): #Rigid Body
         ynew = np.append(y0[0:(index*self.state_size)],y0[(index+1)*self.state_size:])
         self.bodies = newBodies
         return ynew
-        
             
     
-    def runSimulation(self, tick_length, seconds, step, verbose):
-        output = np.empty(0)
-        entityTracker = []
-        y0 = np.ones(self.state_size*len(self.bodies))
-        yfinal = np.ones(self.state_size*len(self.bodies))
-    
+    def createSimulation(self, tick_length, trackTotalOutput):
+        self.trackTotalOutput = trackTotalOutput
+        self.output = np.empty(0)
+        self.entityTracker = []
+        
+        self.y0 = np.ones(self.state_size*len(self.bodies))
+        self.yfinal = np.ones(self.state_size*len(self.bodies))
+        self.tick_length = tick_length
         #init states -> initialize the self.bodies!
-        yfinal = self.Bodies_To_Array()
+        self.t = 0.
+        self.r = ode(self.dydt).set_integrator('dop853', rtol=0., atol=1e-9,nsteps=100)
+        self.yfinal = self.Bodies_To_Array() 
+        return self.yfinal
         
+    
+    def runSimulation(self, agentActions):       
+        self.yfinal = self.Bodies_To_Array() 
+        i = 0
+        while(i < self.state_size*len(self.bodies)):
+            self.y0[i] = self.yfinal[i]
+            i += 1
         
-        tt = 0.
-        t = 0.
-        while(t < seconds): 
-            i = 0
-            while(i < self.state_size*len(self.bodies)):
-                y0[i] = yfinal[i]
-                i += 1
-                
-            output = np.append(output,y0)
+        #########tracking total output##
+        if(self.trackTotalOutput):
+            self.output = np.append(output,y0)
             entities = []
             for b in self.bodies:
                 entities.append(b.objectName)
-            entityTracker.append(entities)
+            self.entityTracker.append(entities)
+        ################################
+        
+        
+        
+        i = 0
+        while(i < len(self.bodies)):
+            if(self.bodies[i].alive == False):
+                self.y0 = self.removeObject(self.y0, self.bodies[i].objectName)
+                i -= 1
+            i += 1
             
-            #
-            #agent calculations here
-            #
-                    #forward, back, up, down, left, right, rollleft, rollright
-            i = 0
-            while(i < len(self.bodies)):
-                if(self.bodies[i].alive == False):
-                    y0 = self.removeObject(y0, self.bodies[i].objectName)
-                    i -= 1
-                i += 1
-            
-            i = 0
-            while(i < len(self.bodies)):
-                #if(self.bodies[i].alive == False):
-                
-                if(self.bodies[i].objectType == "Agent"):    #perform AI actions          
-                    if(t <= (10*tick_length)):              
-                        agentActions = np.array([0.,0., 1.,0., 0.,0., 0.,0.])    
-                    elif((t > (10*tick_length)) and (t <= (20*tick_length))):
-                        agentActions = np.array([0.,0., 0.,0., 0.,0., 0.,0.])
-                    else:
-                        agentActions = np.array([0.,0., 0.,0., 0.,0., 0.,0.])
-                        
-                    if(False):
-                        if((t >= tick_length*10) and (t < tick_length*11)):  #shooting a projectile
-                            if(verbose):
-                                print("FIRE FIRE FIRE")
-                            self.addProjectile(self.bodies[i], 0.005)
-                            y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
-                            yfinal = y0
-                        if((t >= tick_length*21) and (t < tick_length*22)):  #shooting a projectile
-                            if(verbose):
-                                print("FIRE FIRE FIRE")
-                            self.addProjectile(self.bodies[i], 0.01)
-                            y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
-                            yfinal = y0
-                        if((t >= tick_length*33) and (t < tick_length*34)):  #shooting a projectile
-                            if(verbose):
-                                print("FIRE FIRE FIRE")
-                            self.addProjectile(self.bodies[i], 0.02)
-                            y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
-                            yfinal = y0
-                        if((t >= tick_length*45) and (t < tick_length*46)):  #shooting a projectile
-                            if(verbose):
-                                print("FIRE FIRE FIRE")
-                            self.addProjectile(self.bodies[i], 0.03)
-                            y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
-                            yfinal = y0
-                    if((t >= tick_length*57) and (t < tick_length*58)):  #shooting a projectile
-                        if(verbose):
-                            print("FIRE FIRE FIRE")
-                        self.addProjectile(self.bodies[i], 0.04)
-                        y0 = np.append(y0, self.State_To_Array(self.bodies[-1]))
-                        yfinal = y0
-                else: #object has no actions
-                    agentActions = np.array([0.,0., 0.,0., 0.,0., 0.,0.])
-                    
-                y0[(i*self.state_size)+13:(i*self.state_size)+21] = agentActions
-                i += 1
-            
-            #u = []
-            #tlist = []
-            
-            r = ode(self.dydt).set_integrator('dop853', rtol=0., atol=1e-9,nsteps=10)
-            
-            #r = ode(self.dydt).set_integrator('vode', method='adams',
-            #                        order=10, rtol=0., atol=1e-9,
-            #                        with_jacobian=False, nsteps=10)
-            
-            
-            r.set_initial_value(y0,0)
-            
-            #while(r.successful() and r.t < tick_length): #do one integration
-                #u.append(r.y); tlist.append(r.t)
-                #yfinal = (odeint(self.dydt,y0,[t, t + tick_length]))[1]
-                
-            r.integrate(r.t + tick_length)
-            yfinal = r.y
-            
-            if(step != -1 and tt >= step):
-                if(verbose):
-                    print("seconds: {0}".format(t))
-                    if(len(self.bodies) > 1):
-                        body = 1
-                        print("X: ", self.bodies[body].X)
-                        print("Q: ", self.bodies[body].q)
-                        print("P: ", self.bodies[body].P)
-                        print("L: ", self.bodies[body].L)
-                        print("tau: ", self.bodies[body].torque)
-                tt = 0.
-                
-            t += tick_length
-            tt += tick_length
-        return output, entityTracker
+        if(len(self.bodies) == 0):
+            print("NO MORE BODIES!")
+            return self.y0, 0, True
+        #
+        #agent actions added here
+        #
+        #forward, back, up, down, left, right, rollleft, rollright
+        i = 0
+        while(i < len(self.bodies)):
+            self.y0[(i*self.state_size)+13:(i*self.state_size)+21] = agentActions[i]
+            i += 1            
+        
+        self.r.set_initial_value(self.y0,0)
+        self.r.integrate(self.r.t + self.tick_length)
+        self.yfinal = self.r.y
+        self.t += self.tick_length
+        
+        
+        ##########################reward function#########################
+        reward = 0.
+        targetDistance = 1.
+        a = 2000
+        target = "Prime"
+        i = 0
+        while(i < len(self.bodies)):
+            if(self.bodies[i].objectName == target):
+                distance = np.linalg.norm(self.bodies[i].X)
+                temp = np.absolute(distance - targetDistance)
+                reward = (-a*np.square(temp)) + 1
+            i += 1
+        ##################################################################
 
-
+        return self.yfinal, reward, False
 
 
 

@@ -5,7 +5,7 @@ import random
 from numba import jit
 
 
-@jit (nopython=True)
+@jit (nopython=True,cache=True)
 def calcGravity(F, X, mass):
     planet_mass = 10000000000
     gravConstant = scipy.constants.gravitational_constant
@@ -13,7 +13,7 @@ def calcGravity(F, X, mass):
     r2 = np.power(r,3)
     return F + np.multiply(-((gravConstant)*planet_mass*mass)/r2,X)
     
-@jit (nopython=True)
+@jit (nopython=True,cache=True)
 def planetCollision(X, P, mass):
     planet_position = np.array([0.,0.,0.])
     planet_radius = 0.1
@@ -44,7 +44,7 @@ def planetCollision(X, P, mass):
             return True #collision = True
     return False
     
-@jit (nopython=True)
+@jit (nopython=True,cache=True)
 def thrustersCalculate(y, T, F, X, R, thrusts):
     goforward = y[13]
     if(goforward):
