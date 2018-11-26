@@ -196,6 +196,7 @@ class Simulation(): #Rigid Body
     def reset(self):
         self.yfinal = self.resetState
         self.bodies = self.Array_To_Bodies(self.resetState)
+        return self.yfinal
     
     def runSimulation(self, agentActions):       
         self.yfinal = self.Bodies_To_Array() 
