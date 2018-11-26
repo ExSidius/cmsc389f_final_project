@@ -202,13 +202,12 @@ class Simulation(): #Rigid Body
         
         #########tracking total output##
         if(self.trackTotalOutput):
-            self.output = np.append(output,y0)
+            self.output = np.append(self.output,self.y0)
             entities = []
             for b in self.bodies:
                 entities.append(b.objectName)
             self.entityTracker.append(entities)
         ################################
-        
         
         
         i = 0
@@ -247,9 +246,11 @@ class Simulation(): #Rigid Body
                 distance = np.linalg.norm(self.bodies[i].X)
                 temp = np.absolute(distance - targetDistance)
                 reward = (-a*np.square(temp)) + 1
+                if(distance > 100.):
+                    return self.yfinal, reward, True
+                i = len(self.bodies)
             i += 1
         ##################################################################
-
         return self.yfinal, reward, False
 
 
