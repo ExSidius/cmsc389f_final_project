@@ -253,7 +253,7 @@ class Body(): #Rigid Body
             collision = planetCollision(self.X, self.P, self.mass)            
             if(collision):
                 self.alive = False
-                print("hit planet") 
+                #print("hit planet") 
             else:
                 F = calcGravity(F, self.X, self.mass)
 

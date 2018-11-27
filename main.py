@@ -19,8 +19,9 @@ step_size = 1.        # intervals to print seconds at. -1 for no print
 verbose = True     #true to print
 
 
-state_size = 13 + 8 #don't change this, default = 13, agentActions = 8
-sim = sm.Simulation(state_size) #create simulator
+action_size = 8
+state_size = 13 + action_size #don't change this, default = 13, agentActions = 8
+sim = sm.Simulation(state_size, action_size) #create simulator
 
 mass = 10. #mass of the object
 dim = np.array([1.,1.,1.]) #dimensions of the cube object
@@ -41,28 +42,40 @@ sim.createObject(mass, dim, x, q, p, l, objectType, objectName, thrusts, loadtim
 #ATTENTION - OBJECTS MUST HAVE UNIQUE NAMES! 
 #TODO: make it so that objects recieve a unique ID to fix unique name requirement
 
-trackTotalOutput = False #enable if you want visualization
+trackTotalOutput = True #enable if you want visualization
 
 state = sim.createSimulation(tick_length, trackTotalOutput)
+print("before sim:")
+print(sim.yfinal)
+
 done = False
 
 while(done == False):
-    agentActions = np.zeros(8)
     agentNum = len(sim.bodies)
+    agentActions = np.zeros(agentNum)
     i = 0
     while(i < agentNum):
         #forward, back, up, down, left, right, rollleft, rollright
-        actions = np.array([0.,0., 0.,0., 0.,0., 0.,0.])
-        agentActions = np.vstack((agentActions, actions))
+        actions = 0 #np.array([0.,0., 0.,0., 0.,0., 0.,0.])
+        agentActions[i] = actions
         i += 1
-    agentActions = agentActions[1:,:]
     state, reward, done = sim.runSimulation(agentActions)
-    a = 0
-    print(state[(a*state_size):((a+1)*state_size)])
-    
+    print(sim.yfinal)
+    #a = 0
+    #print(state[(a*state_size):((a+1)*state_size)])
+
+print("after sim:")
+print(sim.yfinal)
+sim.reset()   
+print("after reset:")
+print(sim.yfinal) 
+exit()
+
 if(trackTotalOutput == False):
     exit()
-
+    
+output = sim.output
+entityTracker = sim.entityTracker
 #Everything past here is for visualization
 
 maxSamples = 500

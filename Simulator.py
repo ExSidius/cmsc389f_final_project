@@ -1,5 +1,6 @@
 import numpy as np
 import RigidBody as rb
+import ActionSpace as a_s
 
 from scipy.integrate import ode
 import matplotlib.pyplot as plt
@@ -17,11 +18,13 @@ def getIInvandOmega(R, IBodyInv, L):
 
 
 class Simulation(): #Rigid Body 
-    def __init__(self, state_size): 
+    def __init__(self, state_size, action_size): 
         self.state_size = state_size
         self.bodies = []
         self.projectileCount = 0
         self.resetState = np.zeros(state_size)
+        self.resetBodies = []
+        self.action_space = a_s.ActionSpace(action_size)
     def State_To_Array(self, state):
         y = 0
         out = np.zeros(self.state_size)
@@ -190,12 +193,16 @@ class Simulation(): #Rigid Body
         self.t = 0.
         self.r = ode(self.dydt).set_integrator('dop853', rtol=0., atol=1e-9,nsteps=100)
         self.yfinal = self.Bodies_To_Array() 
-        self.resetState = yfinal
-        return self.yfinal
+        #self.resetState = self.yfinal
+        self.resetState = copy.deepcopy(self.yfinal)
+        self.resetBodies = copy.deepcopy(self.bodies)
         
     def reset(self):
-        self.yfinal = self.resetState
-        self.bodies = self.Array_To_Bodies(self.resetState)
+        self.yfinal = copy.deepcopy(self.resetState)
+        self.y0 = copy.deepcopy(self.resetState)
+        self.bodies = copy.deepcopy(self.resetBodies)
+        #print(self.bodies)
+        self.t = 0.
         return self.yfinal
     
     def runSimulation(self, agentActions):       
@@ -218,21 +225,24 @@ class Simulation(): #Rigid Body
         i = 0
         while(i < len(self.bodies)):
             if(self.bodies[i].alive == False):
+                self.tempY = self.y0
                 self.y0 = self.removeObject(self.y0, self.bodies[i].objectName)
                 i -= 1
             i += 1
             
         if(len(self.bodies) == 0):
-            print("NO MORE BODIES!")
-            return self.y0, 0, True
-        #
-        #agent actions added here
-        #
+            #print("NO MORE BODIES!")
+            print("hit planet")
+            return self.tempY, self.tempR, True
+        #############agent actions added here###########
         #forward, back, up, down, left, right, rollleft, rollright
         i = 0
         while(i < len(self.bodies)):
-            self.y0[(i*self.state_size)+13:(i*self.state_size)+21] = agentActions[i]
-            i += 1            
+            self.y0[(i*self.state_size)+13:(i*self.state_size)+21] = self.action_space.actions[int(agentActions[i])]
+            print("Thruster: {0}".format(int(agentActions[i])))
+            i += 1           
+            
+        ###############################################
         
         self.r.set_initial_value(self.y0,0)
         self.r.integrate(self.r.t + self.tick_length)
@@ -242,16 +252,20 @@ class Simulation(): #Rigid Body
         
         ##########################reward function#########################
         reward = 0.
-        targetDistance = 1.
-        a = 2000
+        maxDistance = 10.
+        targetDistance = 5.
+        a = 1
         target = "Prime"
         i = 0
         while(i < len(self.bodies)):
             if(self.bodies[i].objectName == target):
                 distance = np.linalg.norm(self.bodies[i].X)
+                print(distance)
                 temp = np.absolute(distance - targetDistance)
                 reward = (-a*np.square(temp)) + 1
-                if(distance > 100.):
+                self.tempR = reward
+                if(distance > maxDistance):
+                    print("hit maxdistance {0}".format(maxDistance))
                     return self.yfinal, reward, True
                 i = len(self.bodies)
             i += 1

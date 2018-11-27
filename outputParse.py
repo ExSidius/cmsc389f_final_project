@@ -44,7 +44,6 @@ class Visualizer():
             
             index = index + y0size
             i += 1
-        print(y0)
         y0 = y0[1:,:] #cut off the initialized zero row
         print("{0} began existence at tick {1} and lasted for {2} ticks".format(objectName, firstContact, y0.shape[0]))
         return y0, firstContact
