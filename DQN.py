@@ -34,9 +34,9 @@ sim = sm.Simulation(state_size, action_size) #create simulator
 
 mass = 10. #mass of the object
 dim = np.array([1.,1.,1.]) #dimensions of the cube object
-x = np.array([0.,0.,5.]) #position
+x = np.array([5.,5.,5.]) #position
 q = Quaternion(np.array([0.,0.,0.,1.])) #rotation
-p = np.array([0.,0.,0.]) #linear momentum
+p = np.array([2.,2.,2.]) #linear momentum
 l = np.array([0.,0.,0.]) #angular momentum
 objectType = "Agent"
 objectName = "Prime"
@@ -50,7 +50,7 @@ class DQNAgent:
     def __init__(self, env):
         self.env = env # environment
         self.state_size = 13 #env.state_size # number of state parameters
-        self.action_size = 2 #env.action_space.rows # number of possible actions
+        self.action_size = 9 #env.action_space.rows # number of possible actions
         self.memory = deque(maxlen=10000) # memory stores max of 10000 events
         self.gamma = 0.95    # discount rate
         self.epsilon = 1.0  # exploration rate
@@ -62,8 +62,18 @@ class DQNAgent:
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         model = Sequential()
-        model.add(Dense(24, input_dim=self.state_size, activation='relu'))
-        model.add(Dense(24, activation='relu'))
+        model.add(Dense(13, input_dim=self.state_size, activation='relu'))
+        model.add(Dense(26, activation='relu'))
+        model.add(Dense(26, activation='relu'))
+        model.add(Dense(26, activation='relu'))
+        model.add(Dense(26, activation='relu'))
+        model.add(Dense(26, activation='relu'))
+        model.add(Dense(26, activation='relu'))
+        model.add(Dense(26, activation='relu'))
+        model.add(Dense(26, activation='relu'))
+        model.add(Dense(13, activation='relu'))
+        model.add(Dense(13, activation='relu'))
+        model.add(Dense(9, activation='relu'))
         model.add(Dense(self.action_size, activation='linear'))
         model.compile(loss='mse',
                       optimizer=Adam(lr=self.learning_rate))

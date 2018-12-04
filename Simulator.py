@@ -252,7 +252,7 @@ class Simulation(): #Rigid Body
         
         ##########################reward function#########################
         reward = 0.
-        maxDistance = 10.
+        maxDistance = 15.
         targetDistance = 5.
         a = 1
         target = "Prime"
@@ -269,6 +269,9 @@ class Simulation(): #Rigid Body
                     return self.yfinal, reward, True
                 i = len(self.bodies)
             i += 1
+
+        if self.t > 15:
+            return self.yfinal, reward, True
         ##################################################################
         return self.yfinal, reward, False
 

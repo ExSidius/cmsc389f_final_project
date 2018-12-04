@@ -203,7 +203,7 @@ def thrustersCalculate(y, T, F, X, R, thrusts):
 
         tau = rlf1 + rlf2
         T = T + tau
-    return T,F 
+    return T, F 
     
     
 

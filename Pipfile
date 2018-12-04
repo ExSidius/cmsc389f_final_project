@@ -13,6 +13,8 @@ ipython = "*"
 ipykernel = "*"
 jupyterlab = "*"
 tensorboard = "*"
+keras = "*"
+numba = "*"
 
 [dev-packages]
 
