@@ -34,9 +34,9 @@ sim = sm.Simulation(state_size, action_size) #create simulator
 
 mass = 10. #mass of the object
 dim = np.array([1.,1.,1.]) #dimensions of the cube object
-x = np.array([5.,5.,5.]) #position
+x = np.array([0.,5.,5.]) #position
 q = Quaternion(np.array([0.,0.,0.,1.])) #rotation
-p = np.array([2.,2.,2.]) #linear momentum
+p = np.array([0.,0.,0.]) #linear momentum
 l = np.array([0.,0.,0.]) #angular momentum
 objectType = "Agent"
 objectName = "Prime"
@@ -50,57 +50,48 @@ class DQNAgent:
     def __init__(self, env):
         self.env = env # environment
         self.state_size = 13 #env.state_size # number of state parameters
-        self.action_size = 9 #env.action_space.rows # number of possible actions
+        self.action_size = 5 #env.action_space.rows # number of possible actions
         self.memory = deque(maxlen=10000) # memory stores max of 10000 events
-        self.gamma = 0.95    # discount rate
+        self.gamma = 0.8    # discount rate
         self.epsilon = 1.0  # exploration rate
-        self.epsilon_min = 0.01 
+        self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001 # for the neural net
         self.model = self._build_model() # untrained neural net
-        
+
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         model = Sequential()
-        model.add(Dense(13, input_dim=self.state_size, activation='relu'))
-        model.add(Dense(26, activation='relu'))
-        model.add(Dense(26, activation='relu'))
-        model.add(Dense(26, activation='relu'))
-        model.add(Dense(26, activation='relu'))
-        model.add(Dense(26, activation='relu'))
-        model.add(Dense(26, activation='relu'))
-        model.add(Dense(26, activation='relu'))
-        model.add(Dense(26, activation='relu'))
-        model.add(Dense(13, activation='relu'))
-        model.add(Dense(13, activation='relu'))
-        model.add(Dense(9, activation='relu'))
-        model.add(Dense(self.action_size, activation='linear'))
+        model.add(Dense(24, input_dim=self.state_size, activation='relu'))
+        model.add(Dense(24, activation='relu'))
+        model.add(Dense(24, activation='relu'))
+        model.add(Dense(self.action_size, activation='relu'))
         model.compile(loss='mse',
                       optimizer=Adam(lr=self.learning_rate))
         return model
-    
+
     def remember(self, state, action, reward, next_state, done):
         # Store this experience in memory
         pos = next_state[0][0]
         v = next_state[0][1]
-        
+
         # Changing the reward function!
         #reward = abs(v) + abs(pos + 0.5)/10
         #reward = reward + 1
-        
+
         self.memory.append((state, action, reward, next_state, done))
-        
+
     def act(self, state):
         # Act in an epsilon greedy manner
         if np.random.rand() <= self.epsilon:
             return self.env.action_space.sample()
         act_values = self.model.predict(state)
-        return np.argmax(act_values[0])  
-    
+        return np.argmax(act_values[0])
+
     def act_greedy(self, state):
         # Act in a greedy manner after environment is solved
-        return np.argmax(self.model.predict(state)[0]) 
-    
+        return np.argmax(self.model.predict(state)[0])
+
     def replay(self, batch_size):
         # Learn from past experiences
         if batch_size > len(self.memory):
@@ -108,7 +99,7 @@ class DQNAgent:
             return
         minibatch = random.sample(self.memory, batch_size) # Pick a random x amount of experiences to learn from
         for state, action, reward, next_state, done in minibatch:
-            target = reward 
+            target = reward
             # If we're at a terminal state, no need to look at next state
             if not done:
                 # Standard value function
@@ -118,7 +109,7 @@ class DQNAgent:
             self.model.fit(state, target_f, epochs=1, verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-            
+
 # initialize gym environment and the agent
 trackTotalOutput = False #enable if you want visualization
 sim.createSimulation(tick_length, trackTotalOutput)
@@ -165,10 +156,10 @@ for e in range(episodes):
         print("Environment Solved")
         break
     agent.replay(50)
-    
-    
+
+
 position = np.zeros(3)
-    
+
 ##### VISUALIZE FINAL RUN #####
 state = agent.env.reset()
 state = np.reshape(state[0:13], [1, agent.state_size])
@@ -184,7 +175,7 @@ while not done:
     if done:
         print("reward: {0}".format(R))
         break
-            
+
 position = position[1:,:]
 
 mpl.rcParams['legend.fontsize'] = 10
@@ -199,11 +190,3 @@ ax.set_ylabel("Y (position)")
 ax.set_zlabel("Z (position)")
 
 plt.show()
-
-
-            
-            
-            
-            
-            
-            

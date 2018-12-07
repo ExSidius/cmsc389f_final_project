@@ -23,12 +23,18 @@ class ActionSpace():
                 i += 1
             c += 1
 
-        temp = np.zeros((8, 8))
-        temp[np.diag_indices(8, 2)] = 1
-        self.actions = np.vstack((np.zeros(8), temp))
+        self.actions[0,:] = np.array([0.,0.,0.,0.,0.,0.,0.,0.])
+        self.actions[1,:] = np.array([1.,0.,0.,0.,0.,0.,0.,0.])
+        self.actions[2,:] = np.array([0.,1.,0.,0.,0.,0.,0.,0.])
+        self.actions[3,:] = np.array([0.,0.,1.,0.,0.,0.,0.,0.])
+        self.actions[4,:] = np.array([0.,0.,0.,1.,0.,0.,0.,0.])
+        #self.actions[5,:] = np.array([0.,0.,0.,0.,1.,0.,0.,0.])
+        #self.actions[6,:] = np.array([0.,0.,0.,0.,0.,1.,0.,0.])
+        #self.actions[7,:] = np.array([0.,0.,0.,0.,0.,0.,1.,0.])
+        #self.actions[8,:] = np.array([0.,0.,0.,0.,0.,0.,0.,1.])
+
 
     def sample(self):
         t = np.random.randint(self.rows)
-        t = np.random.randint(9)
+        t = np.random.randint(5)
         return t
-            
